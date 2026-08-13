@@ -4,7 +4,8 @@ enum class KeyboardMode {
     LETTERS,
     NUMBERS_SYMBOLS,
     MORE_SYMBOLS,
-    EMOJIS
+    EMOJIS,
+    CLIPBOARD
 }
 
 enum class ShiftState {
@@ -17,12 +18,15 @@ sealed class KeyAction {
     data class Text(val text: String) : KeyAction()
     data class InsertEmoji(val emoji: String) : KeyAction()
     data class CommitSuggestion(val word: String) : KeyAction()
+    data class PasteClipboard(val text: String) : KeyAction()
     object Shift : KeyAction()
     object Backspace : KeyAction()
     object SwitchToSymbols : KeyAction()
     object SwitchToMoreSymbols : KeyAction()
     object SwitchToLetters : KeyAction()
     object SwitchToEmojis : KeyAction()
+    object SwitchToClipboard : KeyAction()
+    object ToggleNumberRow : KeyAction()
     object Space : KeyAction()
     object Enter : KeyAction()
     object HideKeyboard : KeyAction()

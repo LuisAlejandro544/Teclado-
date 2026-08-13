@@ -231,6 +231,10 @@ class SimpleKeyboardService : InputMethodService(), LifecycleOwner, ViewModelSto
                 ic.commitText("${action.word} ", 1)
                 composingPrefix = ""
             }
+            is KeyAction.PasteClipboard -> {
+                composingPrefix = ""
+                ic.commitText(action.text, 1)
+            }
             is KeyAction.Space -> {
                 composingPrefix = ""
                 ic.commitText(" ", 1)

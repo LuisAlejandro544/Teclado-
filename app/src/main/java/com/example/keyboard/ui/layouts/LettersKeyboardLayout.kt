@@ -21,15 +21,34 @@ import com.example.keyboard.ui.components.SpecialKeyButton
 @Composable
 fun LettersKeyboardLayout(
     shiftState: ShiftState,
+    showNumberRow: Boolean = true,
     imeActionLabel: String?,
     imeActionIconType: String,
     onAction: (KeyAction) -> Unit,
     onTriggerHaptic: () -> Unit,
     onLongPress: (String) -> Unit
 ) {
+    val numberRow = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0")
     val row1 = listOf("q", "w", "e", "r", "t", "y", "u", "i", "o", "p")
     val row2 = listOf("a", "s", "d", "f", "g", "h", "j", "k", "l", "ñ")
     val row3 = listOf("z", "x", "c", "v", "b", "n", "m")
+
+    // Optional Row 0 (Top Number Row: 1 2 3 4 5 6 7 8 9 0)
+    if (showNumberRow) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            numberRow.forEach { digit ->
+                KeyButton(
+                    modifier = Modifier.weight(1f),
+                    label = digit,
+                    onClick = { onAction(KeyAction.Text(digit)) },
+                    onLongPress = { onLongPress(digit) }
+                )
+            }
+        }
+    }
 
     // Row 1 (QWERTY with number hints on long press)
     Row(
@@ -38,7 +57,7 @@ fun LettersKeyboardLayout(
     ) {
         row1.forEachIndexed { index, char ->
             val displayChar = if (shiftState != ShiftState.OFF) char.uppercase() else char
-            val hintDigit = ((index + 1) % 10).toString()
+            val hintDigit = if (!showNumberRow) ((index + 1) % 10).toString() else null
             KeyButton(
                 modifier = Modifier.weight(1f),
                 label = displayChar,
@@ -126,3 +145,4 @@ fun LettersKeyboardLayout(
         onLongPress = onLongPress
     )
 }
+

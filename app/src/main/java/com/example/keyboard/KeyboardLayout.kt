@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -16,13 +18,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import com.example.keyboard.clipboard.ClipboardRepository
 import com.example.keyboard.emoji.EmojiManager
 import com.example.keyboard.nativebridge.NativeKeyboardBridge
+import com.example.keyboard.preferences.KeyboardPreferences
 import com.example.keyboard.ui.components.LongPressPopupOverlay
 import com.example.keyboard.ui.components.SuggestionStrip
 import com.example.keyboard.ui.components.VoiceDictationStrip
+import com.example.keyboard.ui.layouts.ClipboardKeyboardLayout
 import com.example.keyboard.ui.layouts.EmojiKeyboardLayout
 import com.example.keyboard.ui.layouts.LettersKeyboardLayout
 import com.example.keyboard.ui.layouts.SymbolsPage1Layout
@@ -31,7 +37,7 @@ import com.example.keyboard.voice.VoiceState
 
 /**
  * Main Keyboard Composable coordinating state, layers, suggestion strip,
- * voice recognition and popups.
+ * voice recognition, clipboard manager and popups.
  */
 @Composable
 fun KeyboardView(
@@ -41,6 +47,15 @@ fun KeyboardView(
     voiceState: VoiceState = VoiceState.Idle,
     onKeyAction: (KeyAction) -> Unit
 ) {
+    val context = LocalContext.current
+
+    LaunchedEffect(Unit) {
+        KeyboardPreferences.init(context)
+        ClipboardRepository.init(context)
+    }
+
+    val showNumberRow by KeyboardPreferences.showNumberRow.collectAsState()
+
     var keyboardMode by remember { mutableStateOf(KeyboardMode.LETTERS) }
     var shiftState by remember { mutableStateOf(ShiftState.OFF) }
     var lastShiftTapTime by remember { mutableLongStateOf(0L) }
@@ -90,6 +105,17 @@ fun KeyboardView(
             }
             is KeyAction.SwitchToEmojis -> {
                 keyboardMode = KeyboardMode.EMOJIS
+            }
+            is KeyAction.SwitchToClipboard -> {
+                ClipboardRepository.syncWithSystemClipboard(context)
+                keyboardMode = KeyboardMode.CLIPBOARD
+            }
+            is KeyAction.ToggleNumberRow -> {
+                KeyboardPreferences.setShowNumberRow(context, !showNumberRow)
+            }
+            is KeyAction.PasteClipboard -> {
+                onKeyAction(action)
+                keyboardMode = KeyboardMode.LETTERS
             }
             is KeyAction.InsertEmoji -> {
                 EmojiManager.addRecentEmoji(action.emoji)
@@ -182,7 +208,7 @@ fun KeyboardView(
                     .padding(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                if (keyboardMode != KeyboardMode.EMOJIS) {
+                if (keyboardMode != KeyboardMode.EMOJIS && keyboardMode != KeyboardMode.CLIPBOARD) {
                     // 1. Suggestion & Autocorrect Strip OR Active Voice Dictation Strip
                     if (voiceState is VoiceState.Listening || voiceState is VoiceState.NoPermission) {
                         VoiceDictationStrip(
@@ -197,6 +223,9 @@ fun KeyboardView(
                             onSelectSuggestion = { word ->
                                 handleKeyAction(KeyAction.CommitSuggestion(word))
                             },
+                            onOpenClipboard = {
+                                handleKeyAction(KeyAction.SwitchToClipboard)
+                            },
                             onStartVoice = {
                                 handleKeyAction(KeyAction.StartVoiceInput)
                             }
@@ -209,6 +238,7 @@ fun KeyboardView(
                     KeyboardMode.LETTERS -> {
                         LettersKeyboardLayout(
                             shiftState = shiftState,
+                            showNumberRow = showNumberRow,
                             imeActionLabel = imeActionLabel,
                             imeActionIconType = imeActionIconType,
                             onAction = handleKeyAction,
@@ -242,6 +272,12 @@ fun KeyboardView(
                             onTriggerHaptic = triggerHaptic
                         )
                     }
+                    KeyboardMode.CLIPBOARD -> {
+                        ClipboardKeyboardLayout(
+                            onAction = handleKeyAction,
+                            onTriggerHaptic = triggerHaptic
+                        )
+                    }
                 }
             }
 
@@ -261,3 +297,4 @@ fun KeyboardView(
         }
     }
 }
+

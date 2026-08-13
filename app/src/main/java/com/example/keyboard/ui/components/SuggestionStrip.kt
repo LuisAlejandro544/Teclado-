@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Icon
@@ -33,14 +34,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Top Suggestion Strip displaying 3 real-time candidates from the prediction engine
- * and a quick Voice Dictation microphone trigger button.
+ * Top Suggestion Strip displaying real-time candidates from the prediction engine,
+ * quick Clipboard Manager trigger and Voice Dictation microphone button.
  */
 @Composable
 fun SuggestionStrip(
     suggestions: List<String>,
     currentWord: String,
     onSelectSuggestion: (String) -> Unit,
+    onOpenClipboard: () -> Unit,
     onStartVoice: () -> Unit
 ) {
     Surface(
@@ -59,6 +61,25 @@ fun SuggestionStrip(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
+            // Quick Clipboard Access Button
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color.White.copy(alpha = 0.9f))
+                    .border(0.8.dp, Color(0xFFCBD5E1), RoundedCornerShape(6.dp))
+                    .clickable { onOpenClipboard() }
+                    .testTag("key_clipboard_trigger"),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Assignment,
+                    contentDescription = "Abrir Portapapeles",
+                    tint = Color(0xFF2563EB),
+                    modifier = Modifier.size(17.dp)
+                )
+            }
+
             val displayList = if (suggestions.isNotEmpty()) {
                 suggestions
             } else {
@@ -134,3 +155,4 @@ fun SuggestionStrip(
         }
     }
 }
+

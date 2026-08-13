@@ -169,6 +169,7 @@ fun SimulatorContent(
                         }
                         is KeyAction.Text -> onTextChange(previewText + action.text)
                         is KeyAction.InsertEmoji -> onTextChange(previewText + action.emoji)
+                        is KeyAction.PasteClipboard -> onTextChange(previewText + action.text)
                         is KeyAction.Space -> onTextChange(previewText + " ")
                         is KeyAction.CommitSuggestion -> {
                             // Replace last word or append

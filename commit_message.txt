@@ -1,0 +1,16 @@
+feat: integrar fila numérica superior opcional, portapapeles con fijado y workflow manual
+
+- ✨ Fila Numérica Superior Opcional:
+  - Fila dedicada con dígitos 1-9-0 arriba de la fila QWERTY.
+  - Conmutable al instante desde configuración o acciones de teclado.
+  - Persistencia de preferencias del usuario en SharedPreferences con StateFlow reactivo.
+
+- 📋 Portapapeles Inteligente Integrado:
+  - Vista dedicada y accesible desde la barra superior del teclado y en los ajustes.
+  - Caducidad automática de elementos no fijados tras 1 hora de inactividad para privacidad y ahorro de memoria.
+  - Función de fijar (pin 📌) textos frecuentes para conservarlos indefinidamente.
+  - Acciones de pegado directo en el campo de texto y eliminación selectiva o completa.
+  - Sincronización transparente con el portapapeles del sistema Android.
+
+- 🚀 CI/CD:
+  - Configuración de la GitHub Action `build-debug-apk.yml` a activación exclusivamente manual (`workflow_dispatch`).
