@@ -1,0 +1,6 @@
+{
+  "name": "Teclado Blanco",
+  "description": "Teclado minimalista en blanco con acentos por pulsación prolongada, barra de sugerencias, autocorrector y motor nativo de predicción.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

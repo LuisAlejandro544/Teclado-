@@ -1,0 +1,12 @@
+[package]
+name = "keyboard-rust-core"
+version = "0.1.0"
+edition = "2021"
+authors = ["Teclado Blanco Team"]
+description = "High performance Rust core for text prediction, gesture swipe decoding, and autocorrect."
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+# Dependencies for future expansions
