@@ -11,6 +11,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dkotlin.daemon.jvm.options=-Xmx2048m -Dorg.gradle.daemon=false -Dorg.gradle.parallel=true -Dorg.gradle.caching=true"
+
 jobs:
   build-debug-apk:
     name: Build & Sign Debug APK
@@ -28,10 +31,13 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: 📦 Setup Gradle & Cache
+      - name: 📱 Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 📦 Setup Gradle 8.11.1 & Cache
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: wrapper
+          gradle-version: '8.11.1'
           cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
 
       - name: 🔒 Generate Debug Keystore on the fly (En caliente)
@@ -40,7 +46,9 @@ jobs:
           if [ -f "debug.keystore.base64" ]; then
             echo "Decodificando debug.keystore.base64..."
             base64 -d debug.keystore.base64 > debug.keystore
-          elif [ ! -f "debug.keystore" ]; then
+          fi
+          
+          if [ ! -f "debug.keystore" ]; then
             echo "Generando llave debug.keystore en caliente con keytool..."
             keytool -genkeypair \
               -alias androiddebugkey \
@@ -64,17 +72,9 @@ jobs:
             fi
           fi
 
-      - name: ⚙️ Ensure Gradle Wrapper
-        run: |
-          if [ ! -f "gradlew" ]; then
-            echo "Generando Gradle wrapper..."
-            gradle wrapper || gradle wrapper --gradle-version 8.11.1
-          fi
-          chmod +x gradlew
-
       - name: 🔨 Compile Debug APK
         run: |
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          gradle :app:assembleDebug --stacktrace --no-daemon
 
       - name: 📤 Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
