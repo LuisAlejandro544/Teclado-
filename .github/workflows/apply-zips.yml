@@ -4,7 +4,24 @@ on:
   push:
     branches: [ "main", "master", "develop" ]
     paths:
-      - "zips/**"
+      - "zip/*.zip"
+      - "zip/*.7z"
+      - "zip/*.tar.gz"
+      - "zip/*.tgz"
+      - "zip/*.tar.bz2"
+      - "zip/*.tar"
+      - "zip/*.rar"
+      - "zip/**/*.zip"
+      - "zip/**/*.7z"
+      - "zips/*.zip"
+      - "zips/*.7z"
+      - "zips/*.tar.gz"
+      - "zips/*.tgz"
+      - "zips/*.tar.bz2"
+      - "zips/*.tar"
+      - "zips/*.rar"
+      - "zips/**/*.zip"
+      - "zips/**/*.7z"
   workflow_dispatch:
 
 concurrency:
@@ -13,7 +30,6 @@ concurrency:
 
 permissions:
   contents: write
-  workflows: write
   actions: write
 
 jobs:
@@ -33,16 +49,16 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq p7zip-full unzip rsync tar bzip2 gzip
 
-      - name: 📦 Procesar y aplicar archivos comprimidos de zips/
+      - name: 📦 Procesar y aplicar archivos comprimidos de zip/ y zips/
         run: |
-          echo "Buscando archivos comprimidos en el directorio 'zips/'..."
-          mkdir -p zips
+          echo "Buscando archivos comprimidos en las carpetas 'zip/' y 'zips/'..."
+          mkdir -p zip zips
           
-          # Buscar archivos .zip, .7z, .tar.gz, .tgz, .tar.bz2, .tar, .rar
-          ARCHIVES=$(find zips -type f \( -iname "*.zip" -o -iname "*.7z" -o -iname "*.tar.gz" -o -iname "*.tgz" -o -iname "*.tar.bz2" -o -iname "*.tar" -o -iname "*.rar" \))
+          # Buscar archivos .zip, .7z, .tar.gz, .tgz, .tar.bz2, .tar, .rar en 'zip' y 'zips'
+          ARCHIVES=$(find zip zips -type f \( -iname "*.zip" -o -iname "*.7z" -o -iname "*.tar.gz" -o -iname "*.tgz" -o -iname "*.tar.bz2" -o -iname "*.tar" -o -iname "*.rar" \) 2>/dev/null)
           
           if [ -z "$ARCHIVES" ]; then
-            echo "No se encontraron archivos comprimidos en 'zips/'. Finalizando con éxito."
+            echo "No se encontraron archivos comprimidos para procesar. Finalizando."
             exit 0
           fi
           
@@ -80,29 +96,29 @@ jobs:
                 ;;
             esac
             
-            # Detectar si el zip contiene una única subcarpeta contenedora (e.g. repo-master/ o mi-app/)
+            # Detectar si el zip contiene una única subcarpeta contenedora (e.g. repo-master/ o app-root/)
             SOURCE_ROOT="$EXTRACT_DEST"
             ITEM_COUNT=$(find "$EXTRACT_DEST" -mindepth 1 -maxdepth 1 | wc -l)
             FIRST_ITEM=$(find "$EXTRACT_DEST" -mindepth 1 -maxdepth 1)
             
             if [ "$ITEM_COUNT" -eq 1 ] && [ -d "$FIRST_ITEM" ] && [ "$(basename "$FIRST_ITEM")" != ".github" ] && [ "$(basename "$FIRST_ITEM")" != "app" ]; then
-              echo "Detectada carpeta contenedora raíz: $(basename "$FIRST_ITEM"). Sincronizando desde su contenido interno..."
+              echo "Detectada carpeta contenedora: $(basename "$FIRST_ITEM"). Sincronizando desde su contenido..."
               SOURCE_ROOT="$FIRST_ITEM"
             fi
             
             echo "Sincronizando archivos hacia el repositorio..."
             # Sincronizar, agregar, modificar y sobrescribir archivos respetando el repo
-            rsync -av --exclude='.git' --exclude='zips' "$SOURCE_ROOT/" ./
+            rsync -av --exclude='.git' --exclude='zip' --exclude='zips' "$SOURCE_ROOT/" ./
             
-            # Eliminar el archivo comprimido procesado de la carpeta zips para evitar loops
+            # Eliminar el archivo comprimido procesado de la carpeta para evitar bucles
             echo "Eliminando archivo procesado: $ARCHIVE"
             rm -f "$ARCHIVE"
           done
           
-          # Mantener la carpeta zips con un .gitkeep
-          touch zips/.gitkeep
+          # Mantener las carpetas con un .gitkeep
+          touch zip/.gitkeep zips/.gitkeep
           
-          # Dar permisos de ejecución a gradlew si vino en el zip
+          # Dar permisos de ejecución a gradlew si vino en el paquete
           if [ -f "gradlew" ]; then
             chmod +x gradlew
           fi
@@ -121,9 +137,8 @@ jobs:
           if [ -n "$(git status --porcelain)" ]; then
             echo "Cambios detectados. Preparando commit..."
             git add -A
-            git commit -m "chore(sync): actualizar código y archivos desde paquete comprimido en zips/ [auto-sync]"
+            git commit -m "chore(sync): actualizar código y archivos desde paquete comprimido [auto-sync]"
             
-            # Realizar push a la rama actual
             CURRENT_BRANCH="${GITHUB_REF#refs/heads/}"
             echo "Haciendo push a la rama: $CURRENT_BRANCH"
             git push origin "$CURRENT_BRANCH"
