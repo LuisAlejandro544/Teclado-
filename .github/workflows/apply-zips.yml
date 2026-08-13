@@ -1,0 +1,132 @@
+name: Auto Update Repo from Zips
+
+on:
+  push:
+    branches: [ "main", "master", "develop" ]
+    paths:
+      - "zips/**"
+  workflow_dispatch:
+
+concurrency:
+  group: sync-zips-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  workflows: write
+  actions: write
+
+jobs:
+  extract-and-sync:
+    name: Extraer y Sincronizar Archivos
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT || secrets.AUTO_SYNC_TOKEN || secrets.PAT_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: 🛠️ Instalar utilidades de descompresión
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq p7zip-full unzip rsync tar bzip2 gzip
+
+      - name: 📦 Procesar y aplicar archivos comprimidos de zips/
+        run: |
+          echo "Buscando archivos comprimidos en el directorio 'zips/'..."
+          mkdir -p zips
+          
+          # Buscar archivos .zip, .7z, .tar.gz, .tgz, .tar.bz2, .tar, .rar
+          ARCHIVES=$(find zips -type f \( -iname "*.zip" -o -iname "*.7z" -o -iname "*.tar.gz" -o -iname "*.tgz" -o -iname "*.tar.bz2" -o -iname "*.tar" -o -iname "*.rar" \))
+          
+          if [ -z "$ARCHIVES" ]; then
+            echo "No se encontraron archivos comprimidos en 'zips/'. Finalizando con éxito."
+            exit 0
+          fi
+          
+          TEMP_DIR=$(mktemp -d)
+          echo "Directorio temporal de extracción: $TEMP_DIR"
+          
+          for ARCHIVE in $ARCHIVES; do
+            echo "Procesando archivo: $ARCHIVE"
+            EXTRACT_DEST="$TEMP_DIR/extracted_$(basename "$ARCHIVE" | sed 's/[^a-zA-Z0-9]/_/g')"
+            mkdir -p "$EXTRACT_DEST"
+            
+            FILENAME=$(basename "$ARCHIVE")
+            case "${FILENAME,,}" in
+              *.zip)
+                unzip -q -o "$ARCHIVE" -d "$EXTRACT_DEST"
+                ;;
+              *.7z)
+                7z x -y "$ARCHIVE" -o"$EXTRACT_DEST"
+                ;;
+              *.tar.gz|*.tgz)
+                tar -xzf "$ARCHIVE" -C "$EXTRACT_DEST"
+                ;;
+              *.tar.bz2|*.tbz2)
+                tar -xjf "$ARCHIVE" -C "$EXTRACT_DEST"
+                ;;
+              *.tar)
+                tar -xf "$ARCHIVE" -C "$EXTRACT_DEST"
+                ;;
+              *.rar)
+                7z x -y "$ARCHIVE" -o"$EXTRACT_DEST"
+                ;;
+              *)
+                echo "Formato no soportado directamente para $ARCHIVE, intentando con 7z..."
+                7z x -y "$ARCHIVE" -o"$EXTRACT_DEST" || true
+                ;;
+            esac
+            
+            # Detectar si el zip contiene una única subcarpeta contenedora (e.g. repo-master/ o mi-app/)
+            SOURCE_ROOT="$EXTRACT_DEST"
+            ITEM_COUNT=$(find "$EXTRACT_DEST" -mindepth 1 -maxdepth 1 | wc -l)
+            FIRST_ITEM=$(find "$EXTRACT_DEST" -mindepth 1 -maxdepth 1)
+            
+            if [ "$ITEM_COUNT" -eq 1 ] && [ -d "$FIRST_ITEM" ] && [ "$(basename "$FIRST_ITEM")" != ".github" ] && [ "$(basename "$FIRST_ITEM")" != "app" ]; then
+              echo "Detectada carpeta contenedora raíz: $(basename "$FIRST_ITEM"). Sincronizando desde su contenido interno..."
+              SOURCE_ROOT="$FIRST_ITEM"
+            fi
+            
+            echo "Sincronizando archivos hacia el repositorio..."
+            # Sincronizar, agregar, modificar y sobrescribir archivos respetando el repo
+            rsync -av --exclude='.git' --exclude='zips' "$SOURCE_ROOT/" ./
+            
+            # Eliminar el archivo comprimido procesado de la carpeta zips para evitar loops
+            echo "Eliminando archivo procesado: $ARCHIVE"
+            rm -f "$ARCHIVE"
+          done
+          
+          # Mantener la carpeta zips con un .gitkeep
+          touch zips/.gitkeep
+          
+          # Dar permisos de ejecución a gradlew si vino en el zip
+          if [ -f "gradlew" ]; then
+            chmod +x gradlew
+          fi
+          
+          # Limpiar directorio temporal
+          rm -rf "$TEMP_DIR"
+
+      - name: 🚀 Commit y Push de cambios actualizados
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Comprobar si hay cambios staged o unstaged
+          git status
+          
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "Cambios detectados. Preparando commit..."
+            git add -A
+            git commit -m "chore(sync): actualizar código y archivos desde paquete comprimido en zips/ [auto-sync]"
+            
+            # Realizar push a la rama actual
+            CURRENT_BRANCH="${GITHUB_REF#refs/heads/}"
+            echo "Haciendo push a la rama: $CURRENT_BRANCH"
+            git push origin "$CURRENT_BRANCH"
+          else
+            echo "No hubo diferencias ni cambios que confirmar."
+          fi
